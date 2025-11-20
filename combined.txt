@@ -1,0 +1,6 @@
+# OSS Curated IP Blocklist
+# Generated: Manual placeholder - will be auto-updated by GitHub Actions
+# Sources: Spamhaus DROP, DShield, Hagezi TIF, Feodo Tracker
+# Last updated: 2025-11-20
+
+# This file will be automatically populated by the update workflow
