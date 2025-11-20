@@ -1,0 +1,51 @@
+name: Update Blocklists
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Download Spamhaus DROP
+      run: |
+        curl -s https://www.spamhaus.org/drop/drop.txt | grep -v '^;' | grep -v '^$' | awk '{print $1}' | cut -d'/' -f1 > spamhaus.txt
+        
+    - name: Download DShield Top 20
+      run: |
+        curl -s https://isc.sans.edu/api/sources/attacks/20/2592000?json | grep -oP '"ipaddr":"\K[^"]+' > dshield.txt
+        
+    - name: Download Hagezi Threat Intelligence
+      run: |
+        curl -s https://raw.githubusercontent.com/hagezi/dns-blocklists/main/ips/tif.txt | grep -v '^#' | grep -v '^$' > hagezi.txt
+        
+    - name: Download Feodo Tracker
+      run: |
+        curl -s https://feodotracker.abuse.ch/downloads/ipblocklist.txt | grep -v '^#' | grep -v '^$' > feodo.txt
+        
+    - name: Combine and deduplicate
+      run: |
+        cat spamhaus.txt dshield.txt hagezi.txt feodo.txt | sort -u > combined_temp.txt
+        
+    - name: Add header
+      run: |
+        echo "# OSS Curated IP Blocklist" > combined.txt
+        echo "# Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> combined.txt
+        echo "# Sources: Spamhaus DROP, DShield Top 20, Hagezi TIF, Feodo Tracker" >> combined.txt
+        echo "# Total IPs: $(wc -l < combined_temp.txt)" >> combined.txt
+        echo "" >> combined.txt
+        cat combined_temp.txt >> combined.txt
+        
+    - name: Commit changes
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add combined.txt
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update blocklist $(date -u '+%Y-%m-%d')"
+        git push
